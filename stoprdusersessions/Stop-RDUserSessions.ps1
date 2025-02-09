@@ -60,11 +60,13 @@ This example omits the timestamp for each but the first line to show that it is 
 messages are written to Write-Output and Write-Verbose.
 
 .NOTES
-General notes
+If called directly, the -Verbose, -Debug and -InformationAction Continue parameters have to be provided.
+Those messages are printet, if the switches or preferences have been set in the calling function.
 #>
 function Write-Log {
 	[CmdletBinding()]
 	param(
+		[Parameter(Mandatory, Position = 0)]
 		[string] $Message,
 
 		[ValidateSet('Output', 'Information', 'Verbose', 'Debug', 'Warning', 'Error', 'Host')]
@@ -91,7 +93,7 @@ function Write-Log {
 	$text = "$timestampPrefix" + "$indentationPrefix" + "$Message"
 	
 	foreach($logMode in $Mode) {
-		Invoke-Expression -Command "Write-$logMode $text"
+		Invoke-Expression -Command "Write-$logMode ""$text"""
 	}
 }
 
