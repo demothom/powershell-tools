@@ -37,8 +37,8 @@ An optional paramter to format the timestamp. If an invalid format is given, the
 'HH:mm:ss' is used.
 
 .PARAMETER NoTimeStamp
-If provided the timestamp is replaced by an equal amount of spaces, in the default case the
-text is indentet by 10 spaces.
+If set, the timestamp is replaced by an equal amount of spaces, in the default case thetext is indented
+by 10 spaces.
 
 .EXAMPLE
 Write-Log -Message 'This is a message.'
@@ -61,7 +61,7 @@ messages are written to Write-Output and Write-Verbose.
 
 .NOTES
 If called directly, the -Verbose, -Debug and -InformationAction Continue parameters have to be provided.
-Those messages are printet, if the switches or preferences have been set in the calling function.
+Those messages are printed if the switches or preferences have been set in the calling function.
 #>
 function Write-Log {
 	[CmdletBinding()]
@@ -104,7 +104,7 @@ Terminates a remote session.
 .DESCRIPTION
 Terminates the remote session given by its session ID. A delay can be provided after which the session is terminated.
 In this case, the user is notified with a message about the impending logout. The logout script is run as a background
-job wich pauses until the delay has passed. The job object is returned to the caller
+job which pauses until the delay has passed. The job object is returned to the caller.
 
 .PARAMETER SessionID
 The session ID that should be terminated.
