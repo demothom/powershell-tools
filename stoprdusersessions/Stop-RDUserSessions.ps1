@@ -1,13 +1,13 @@
 
-$script:defaultPopUpMessageTitle   = 'Maintenance'
-$script:defaultPopUpMessageBody    = 'Due to maintenance your current session will be terminated in {0}. ' +
-					                 'Please safe all open documents or unsafed progress may be lost.'
+$script:defaultPopUpMessageTitle      = 'Maintenance'
+$script:defaultPopUpMessageBody       = 'Due to maintenance your current session will be terminated in {0}. ' +
+                                        'Please safe all open documents or unsafed progress may be lost.'
 
-$script:defaultLogoutDelayMinutes = 2
+$script:defaultLogoutDelayMinutes     = 2
 $script:defaultLogoutFrequencySeconds = 10
-$script:defaultGracePeriodMinutes = 5
+$script:defaultGracePeriodMinutes     = 5
 
-$script:defaultTimeStampFormat = 'HH:mm:ss'
+$script:defaultTimeStampFormat        = 'HH:mm:ss'
 
 <#
 .SYNOPSIS
@@ -253,7 +253,7 @@ function Stop-RDUserSessions {
 		[int] $GracePeriodMinutes = $script:defaultGracePeriodMinutes,
 
 		[switch] $LogoutOnce
-    )
+	)
 	
 	$cutOffTime = Get-Date.AddMinutes($GracePeriodMinutes)
 	$queuedSessions = [hashtable]::new()
@@ -273,7 +273,7 @@ function Stop-RDUserSessions {
 	while (-not $exitProgram) {
 		
 		$minutesToCutoffTime = New-TimeSpan -Start (Get-Date) -End $cutOffTime.AddSeconds(1) | Select-Object -ExpandProperty Minutes
-		if($minutesToCutoffTime -le 0) {
+		if ($minutesToCutoffTime -le 0) {
 			$message = 'Grace period reached. Sessions will be terminated immediately.'
 			Write-Log -Message $message -Mode 'Verbose'
 		}
@@ -281,7 +281,7 @@ function Stop-RDUserSessions {
 		# Query sessions.
 		$sessions = Get-RDUserSession | Where-Object UserName -ne ${Env:USERNAME}
 
-		if(($sessions | Measure-Object).Count -eq 0) {
+		if (($sessions | Measure-Object).Count -eq 0) {
 			$message = 'No sessions were detected.'
 			Write-Log -Message $message 'Verbose'
 		} else {
@@ -297,7 +297,7 @@ function Stop-RDUserSessions {
 		foreach($id in $queuedSessions.Keys) {
 			if ($id -notin ($sessions | Select-Object -ExpandProperty UnifiedSessionID)) {
 				$message = "The session with SessionID [$id] and " +
-						   "UserName [$($queuedSessions[$id].UserName)] does not exist anymore."
+				           "UserName [$($queuedSessions[$id].UserName)] does not exist anymore."
 				Write-Log -Message $message -Mode 'Verbose'
 				$message = 'Removing the session from the queue.'
 				Write-Log -Message $message -Mode 'Verbose' -NoTimeStamp
@@ -313,7 +313,7 @@ function Stop-RDUserSessions {
 				$message = "The UserName for SessionID [$($sessions.UnifiedSessionID)] does not match queued UserName."				
 				Write-Log -Message $message -Mode 'Verbose'
 				$message = "The queued UserName is: [$($queuedSessions[$session.UnifiedSessionID].UserName)]. " +
-						   "The current UserName for the session is: [$($session.UserName)]."
+				           "The current UserName for the session is: [$($session.UserName)]."
 				Write-Log -Message $message -Mode 'Verbose' -NoTimeStamp
 				$message = 'Removing the sessionfrom the queue'
 				Write-Log -Message $message -Mode 'Verbose' -NoTimeStamp
