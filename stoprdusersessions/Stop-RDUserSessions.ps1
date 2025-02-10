@@ -11,66 +11,42 @@ $script:defaultTimeStampFormat        = 'HH:mm:ss'
 
 <#
 .SYNOPSIS
-Outputs messages to the console with a timestamp.
+Formats a string with a timestamp.
 
 .DESCRIPTION
-The provided text is prefixed with a timestamp and written to the console. The timestamp has the
-format 'HH:mm:ss', followed by a colon and a space.
-The default Write-[Stream] commandlets are used to output the text. These can be chosen with the
-parameter Mode. The default output stream used is the Write-Output commandlet. More than one
-stream can be chosen for the Mode parameter. In this case the text is put to each of them.
+The input string is returned with a timestamp in the form 'HH:mm:ss: ' preceeding it.
+The format of the timestamp can be chosen or it can be omitted. In the latter case it 
+will be replaced by an equal amount of spaces. An Indentation parameter can be set that
+inserts additional spaces between the timestamp and the text.
 
 .PARAMETER Message
-The text to be written.
-
-.PARAMETER Mode
-The stream to which the text should be written. Possible values are 'Output', 'Information', 'Verbose', 
-'Debug', 'Warning', 'Error', 'Host'. More than one stream can be provided. In this case, he text is
-written to each chosen stream.
+The text to be formatted.
 
 .PARAMETER Indentation
-An optional paramter to indent the text by Indentation times of spaces. The spaces are inserted
-between the timestamp and the text.
+The amount of additional whitespaces between the timestamp and the text.
 
 .PARAMETER TimeStampFormat
-An optional paramter to format the timestamp. If an invalid format is given, the default format
-'HH:mm:ss' is used.
+A format for the timestamp. If it is invalid the default format 'HH:mm:ss' is used. 
+A colon and a whitespace is added after the timestamp.
 
 .PARAMETER NoTimeStamp
-If set, the timestamp is replaced by an equal amount of spaces, in the default case thetext is indented
-by 10 spaces.
+If set, the timestamp is replaced by an amount of spaces equal to its length.
 
 .EXAMPLE
-Write-Log -Message 'This is a message.'
+Format-LogMessage -Message 'Hello'
 
-Writes a message into the output stream.
-
-.EXAMPLE
-Write-Log -Message 'This is another message.' -Mode 'Verbose'
-
-Writes a text into the verbose stream.
+Retuns the text prefixed by the current time, i.e. 15:02:23: Hello
 
 .EXAMPLE
-Write-Log -Message 'This is a header. Here are some more lines:'     -Mode 'Output', 'Verbose'
-Write-Log -Message 'This is some more text, but writte without the ' -Mode 'Output', 'Verbose' -NoTimeStamp
-Write-Log -Message 'timestamp, so it is clear, that this is a text'  -Mode 'Output', 'Verbose' -NoTimeStamp
-Write-Log -Message 'spanning multiple lines.                         -Mode 'Output', 'Verbose' -NoTimeStamp
+Format-LogMessage -Message 'Hello' -TimeStampFormat 'HH'
 
-This example omits the timestamp for each but the first line to show that it is a multiline text. The
-messages are written to Write-Output and Write-Verbose.
-
-.NOTES
-If called directly, the -Verbose, -Debug and -InformationAction Continue parameters have to be provided.
-Those messages are printed if the switches or preferences have been set in the calling function.
+Returns the text pefixed by the current hour, i.e. 15: Hello
 #>
-function Write-Log {
+function Format-LogMessage {
 	[CmdletBinding()]
 	param(
 		[Parameter(Mandatory, Position = 0)]
 		[string] $Message,
-
-		[ValidateSet('Output', 'Information', 'Verbose', 'Debug', 'Warning', 'Error', 'Host')]
-		[string[]] $Mode = 'Output',
 
 		[ValidateRange(0, 64)]
 		[int] $Indentation = 0,
@@ -90,11 +66,7 @@ function Write-Log {
 		$timestampPrefix = ' ' * $timestampPrefix.Length
 	}
 	$indentationPrefix = ' ' * $Indentation
-	$text = "$timestampPrefix" + "$indentationPrefix" + "$Message"
-	
-	foreach($logMode in $Mode) {
-		Invoke-Expression -Command "Write-$logMode ""$text"""
-	}
+	return "$timestampPrefix" + "$indentationPrefix" + "$Message"
 }
 
 <#
@@ -176,6 +148,7 @@ function Start-RDUserLogout {
 				$HostServer
 			)
 
+			# Only show the popup if there is a delay.
 			if($DelayMinutes -gt 0) {
 				$delayDisplayText = "$DelayMinutes minute"
 				if($DelayMinutes -gt 1) {
@@ -262,36 +235,46 @@ function Stop-RDUserSessions {
 	$exitProgram = $false
 
 	$message = 'Logging out users.'
-	Write-Log -Message $message -Mode 'Output', 'Verbose'
+	$message = Format-LogMessage -Message $message
+	Write-Output $message
+	Write-Verbose -Message $message
 	$message = "Active sessions will be terminated after $LogoutDelayMinutes Minutes."
-	Write-Log -Message $message -Mode 'Verbose'
+	$message = Format-LogMessage -Message $message
+	Write-Verbose -Message $message
 	$message = 'Disconnected sessions will be terminated instantly.'
-	Write-Log -Message $message -Mode 'Verbose'
+	$message = Format-LogMessage -Message $message
+	Write-Verbose -Message $message
 	$message = "The grace period is $GracePeriodMinutes minutes, it lasts until $($cutOffTime.ToString('HH:mm:ss'))."
-	Write-Log -Message $message -Mode 'Verbose'
+	$message = Format-LogMessage -Message $message
+	Write-Verbose -Message $message
 	$message = 'After that sessions will be terminated immediately.'
-	Write-Log -Message $message -Mode 'Verbose' -NoTimeStamp
+	$message = Format-LogMessage -Message $message -NoTimeStamp
+	Write-Verbose -Message $message
 
 	while (-not $exitProgram) {
 		
 		$minutesToCutoffTime = New-TimeSpan -Start (Get-Date) -End $cutOffTime.AddSeconds(1) | Select-Object -ExpandProperty Minutes
 		if ($minutesToCutoffTime -le 0) {
 			$message = 'Grace period reached. Sessions will be terminated immediately.'
-			Write-Log -Message $message -Mode 'Verbose'
+			$message = Format-LogMessage -Message $message
+			Write-Verbose -Message $message
 		}
 
 		# Query sessions.
 		$sessions = Get-RDUserSession | Where-Object UserName -ne ${Env:USERNAME}
-
+		
 		if (($sessions | Measure-Object).Count -eq 0) {
 			$message = 'No sessions were detected.'
-			Write-Log -Message $message 'Verbose'
+			$message = Format-LogMessage -Message $message
+			Write-Verbose -Message $message
 		} else {
 			$message = "The following sessions where detected:"
-			Write-Log -Message $message -Mode 'Verbose'
+			$message = Format-LogMessage -Message $message
+			Write-Verbose -Message $message
 			foreach($session in $sessions) {
 				$message = "SessionID: [$($session.UnifiedSessionID)] Username: [$($session.UserName)]."
-				Write-Log -Message $message -Mode 'Verbose' -NoTimeStamp -Indentation 4
+				$message = Format-LogMessage -Message $message -NoTimeStamp -Indentation 4
+				Write-Verbose -Message $message
 			}
 		}
 
@@ -300,9 +283,11 @@ function Stop-RDUserSessions {
 			if ($id -notin ($sessions | Select-Object -ExpandProperty UnifiedSessionID)) {
 				$message = "The session with SessionID [$id] and " +
 				           "UserName [$($queuedSessions[$id].UserName)] does not exist anymore."
-				Write-Log -Message $message -Mode 'Verbose'
+				$message = Format-LogMessage -Message $message
+				Write-Verbose -Message $message
 				$message = 'Removing the session from the queue.'
-				Write-Log -Message $message -Mode 'Verbose' -NoTimeStamp
+				$message = Format-LogMessage -Message $message -NoTimeStamp
+				Write-Verbose -Message $message
 							
 				$queuedSessions[$session.UnifiedSessionID].JobHandle.Stop()
 				$queuedSessions.Remove($id)
@@ -313,12 +298,15 @@ function Stop-RDUserSessions {
 		foreach($session in $sessions) {
 			if($queuedSessions[$session.UnifiedSessionID].UserName -ne $session.UserName) {
 				$message = "The UserName for SessionID [$($sessions.UnifiedSessionID)] does not match queued UserName."				
-				Write-Log -Message $message -Mode 'Verbose'
+				$message = Format-LogMessage -Message $message
+				Write-Verbose -Message $message
 				$message = "The queued UserName is: [$($queuedSessions[$session.UnifiedSessionID].UserName)]. " +
 				           "The current UserName for the session is: [$($session.UserName)]."
-				Write-Log -Message $message -Mode 'Verbose' -NoTimeStamp
+				$message = Format-LogMessage -Message $message -NoTimeStamp
+				Write-Verbose -Message $message
 				$message = 'Removing the sessionfrom the queue'
-				Write-Log -Message $message -Mode 'Verbose' -NoTimeStamp
+				$message = Format-LogMessage -Message $message -NoTimeStamp
+				Write-Verbose -Message $message
 
 				$queuedSessions[$session.UnifiedSessionID].JobHandle.Stop()
 				$queuedSessions.Remove($session.UnifiedSessionID)
@@ -328,18 +316,22 @@ function Stop-RDUserSessions {
 		# Queue sessions that were not queued yet.
 		foreach($session in ($sessions | Where-Object UnifiedSessionID -notin $queuedSessions.Keys)) {			
 			$message = "Adding session to the queue. SessionID: [$($session.UnifiedSessionID)], UserName: [$($session.UserName)]"
-			Write-Log -Message $message -Mode 'Output', 'Verbose'
+			$message = Format-LogMessage -Message $message
+			Write-Output $message
+			Write-Verbose -Message $message
 
 			if ($session.SessionState -eq 'STATE_DISCONNECTED') {
 				$delay = 0
 
 				$message = 'The session is disconnected. It will be terminated immediately.'
-				Write-Log -Message $message -Mode 'Verbose' -NoTimeStamp
+				$message = Format-LogMessage -Message $message -NoTimeStamp
+				Write-Verbose -Message $message
 			} else {
 				$delay = [math]::min($minutesToCutoffTime, $LogoutDelayMinutes)
 
 				$message = "The session is active, it will be terminated at: [$((Get-Date).AddMinutes($delay).ToString('HH:mm:ss'))]."
-				Write-Log -Message $message -Mode 'Verbose' -NoTimeStamp
+				$message = Format-LogMessage -Message $message -NoTimeStamp
+				Write-Verbose -Message $message
 			}
 
 			$queuedSessions[$session.UnifiedSessionID] = @{
@@ -352,19 +344,25 @@ function Stop-RDUserSessions {
 		# Log information.
 		if ($sessions.Count -eq 0) {
 			$message = 'No sessions to terminate.'
-			Write-Log -Message $message -Mode 'Output', 'Verbose'
+			$message = Format-LogMessage -Message $message
+			Write-Output $message
+			Write-Verbose -Message $message
 		} else {
 			$longestLastingSession = $sessions.Values.LogoutTime | Measure-Object -Maximum
 			$message = "$($sessions.Count) sessions are queued to be terminated. " +
 			           "The last session will be terminated at [$($longestLastingSession.ToString('HH:mm:ss'))]."
-			Write-Log -Message $message -Mode 'Output', 'Verbose'
+			$message = Format-LogMessage -Message $message
+			Write-Output $message
+			Write-Verbose -Message $message
 
 			$message = 'The following sessions are quequed to be terminated:'
-			Write-Log -Message $message -Mode 'Verbose'
+			$message = Format-LogMessage -Message $message
+			Write-Verbose -Message $message
 			foreach($id in $queuedSessions.Keys) {
 				$message = "SessionID: [$id] UserName: [$($queuedSessions[$id].UserName)] " +
 				           "LogoutTime: [$($queuedSessions[$id].LogoutTime.ToString('HH:mm:ss'))]"
-				Write-Log -Message $message -Mode 'Verbose' -NoTimeStamp
+				$message = Format-LogMessage -Message $message -NoTimeStamp
+				Write-Verbose -Message $message
 			}
 		}
 
@@ -374,5 +372,7 @@ function Stop-RDUserSessions {
 		}
 	}
 	$message = 'Currently there are no active sessions. Exiting script.'
-	Write-Log -Message $message -Mode 'Output', 'Verbose'
+	$message = Format-LogMessage -Message $message
+	Write-Output $message
+	Write-Verbose -Message $message
 }
