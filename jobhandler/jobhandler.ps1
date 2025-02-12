@@ -92,7 +92,7 @@ class Job {
 
 }
 
-class JobScheduler {
+class JobHandler {
     [System.Timers.Timer] $JobLogTimer
     [scriptblock]         $Logger = { param([string] $Text, [string] $Mode) Write-Host $Text }
     [hashtable]           $JobList
@@ -119,11 +119,11 @@ class JobScheduler {
         }
     }
 
-    JobScheduler() {
+    JobHandler() {
         $this.Init($this.Logger)
     }
 
-    JobScheduler([scriptblock] $Logger) {
+    JobHandler([scriptblock] $Logger) {
         $this.Init($Logger)
     }
 
@@ -138,13 +138,13 @@ class JobScheduler {
         Register-ObjectEvent -InputObject $this.JobLogTimer -EventName 'Elapsed' -Action $this.CheckJobs
     }
 
-    hidden [bool] HasJobTimedout([Job] $Job) {
-        return $Job.GetUptime() -gt $this.jobTimeoutMinutes
+    hidden [bool] HasJobTimedOut([Job] $Job) {
+        return $Job.GetUptime() -gt $this.jobTimeout
     }
 
     hidden [void] TerminateStuckJobs() {
         foreach($job in $this.JobList.GetEnumerator()) {
-            if($this.HasJobTimedout($job)) {
+            if($this.HasJobTimedOut($job)) {
                 $Job.StopJob()
             }
         }
