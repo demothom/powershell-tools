@@ -26,11 +26,19 @@ The text to be formatted.
 The amount of additional whitespaces between the timestamp and the text.
 
 .PARAMETER TimeStampFormat
-A format for the timestamp. If it is invalid the default format 'HH:mm:ss' is used. 
+A format for the timestamp. 
 A colon and a whitespace is added after the timestamp.
 
 .PARAMETER NoTimeStamp
 If set, the timestamp is replaced by an amount of spaces equal to its length.
+
+.INPUTS
+System.String
+	You can pipe a string that contains the message to this cmdlet.
+
+.OUTPUTS
+System.String
+	The formatted string.
 
 .EXAMPLE
 Format-LogMessage -Message 'Hello'
@@ -45,28 +53,26 @@ Returns the text pefixed by the current hour, i.e. 15: Hello
 function Format-LogMessage {
 	[CmdletBinding()]
 	param(
-		[Parameter(Mandatory, Position = 0)]
+		[Parameter(Mandatory, ValueFromPipeline, Position = 0)]
 		[string] $Message,
 
 		[ValidateRange(0, 64)]
 		[int] $Indentation = 0,
 
-		[string] $TimeStampFormat = $script:defaultTimeStampFormat,
+		[string] $TimeStampFormat = $($script:defaultTimeStampFormat),
 
 		[switch] $NoTimeStamp
 	)
 
-	try {
+	process {
 		$timestamp = Get-Date -Format $TimeStampFormat
-	} catch {
-		$timestamp = Get-Date -Format $script:defaultTimeStampFormat
+		$timestampPrefix = "${timestamp}: "
+		if ($NoTimeStamp) {
+			$timestampPrefix = ' ' * $timestampPrefix.Length
+		}
+		$indentationPrefix = ' ' * $Indentation
+		return '{0}{1}{2}' -f $timestampPrefix, $indentationPrefix, $Message
 	}
-	$timestampPrefix = "${timestamp}: "
-	if ($NoTimeStamp) {
-		$timestampPrefix = ' ' * $timestampPrefix.Length
-	}
-	$indentationPrefix = ' ' * $Indentation
-	return "$timestampPrefix" + "$indentationPrefix" + "$Message"
 }
 
 <#
