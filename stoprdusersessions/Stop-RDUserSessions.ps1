@@ -236,7 +236,7 @@ function Stop-RDUserSessions {
 		[switch] $LogoutOnce
 	)
 	
-	$cutOffTime = Get-Date.AddMinutes($GracePeriodMinutes)
+	$cutOffTime = (Get-Date).AddMinutes($GracePeriodMinutes)
 	$queuedSessions = [hashtable]::new()
 	$exitProgram = $false
 
@@ -285,7 +285,7 @@ function Stop-RDUserSessions {
 		}
 
 		# Remove sessions from queue that do not exist anymore.
-		foreach($id in $queuedSessions.Keys) {
+		foreach($id in $queuedSessions.GetEnumerator().Name) {
 			if ($id -notin ($sessions | Select-Object -ExpandProperty UnifiedSessionID)) {
 				$message = "The session with SessionID [$id] and " +
 				           "UserName [$($queuedSessions[$id].UserName)] does not exist anymore."
@@ -295,15 +295,15 @@ function Stop-RDUserSessions {
 				$message = Format-LogMessage -Message $message -NoTimeStamp
 				Write-Verbose -Message $message
 							
-				$queuedSessions[$session.UnifiedSessionID].JobHandle.Stop()
+				$queuedSessions[$id].JobHandle.StopJob()
 				$queuedSessions.Remove($id)
 			}
 		}
 
 		# Remove sessions from queue where sessionID and UserName do not match.
-		foreach($session in $sessions) {
+		foreach($session in $sessions | Where-Object UnifiedSessionID -in $queuedSessions.Keys) {
 			if($queuedSessions[$session.UnifiedSessionID].UserName -ne $session.UserName) {
-				$message = "The UserName for SessionID [$($sessions.UnifiedSessionID)] does not match queued UserName."				
+				$message = "The UserName for SessionID [$($sessions.UnifiedSessionID)] does not match queued UserName."			
 				$message = Format-LogMessage -Message $message
 				Write-Verbose -Message $message
 				$message = "The queued UserName is: [$($queuedSessions[$session.UnifiedSessionID].UserName)]. " +
@@ -314,7 +314,7 @@ function Stop-RDUserSessions {
 				$message = Format-LogMessage -Message $message -NoTimeStamp
 				Write-Verbose -Message $message
 
-				$queuedSessions[$session.UnifiedSessionID].JobHandle.Stop()
+				$queuedSessions[$session.UnifiedSessionID].JobHandle.StopJob()
 				$queuedSessions.Remove($session.UnifiedSessionID)
 			}
 		}
@@ -341,21 +341,21 @@ function Stop-RDUserSessions {
 			}
 
 			$queuedSessions[$session.UnifiedSessionID] = @{
-				UserName  = $session.UserName
+				UserName   = $session.UserName
 				LogoutTime = (Get-Date).AddMinutes($delay)
-				JobHandle = Start-RDUserLogout -Session $session -DelayMinutes $delay
+				JobHandle  = Start-RDUserLogout -Session $session -DelayMinutes $delay
 			}
 		}
 
 		# Log information.
-		if ($sessions.Count -eq 0) {
+		if ($queuedSessions.Count -eq 0) {
 			$message = 'No sessions to terminate.'
 			$message = Format-LogMessage -Message $message
 			Write-Output $message
 			Write-Verbose -Message $message
 		} else {
-			$longestLastingSession = $sessions.Values.LogoutTime | Measure-Object -Maximum
-			$message = "$($sessions.Count) sessions are queued to be terminated. " +
+			$longestLastingSession = $queuedSessions.Values.LogoutTime | Measure-Object -Maximum
+			$message = "$($queuedSessions.Count) sessions are queued to be terminated. " +
 			           "The last session will be terminated at [$($longestLastingSession.ToString('HH:mm:ss'))]."
 			$message = Format-LogMessage -Message $message
 			Write-Output $message
