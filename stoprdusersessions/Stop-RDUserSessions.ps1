@@ -119,18 +119,16 @@ and another session is started after that with the same ID.
 function Start-RDUserLogout {
 	[CmdletBinding()]
 	param(
-		[Parameter(Mandatory, ValueFromPipeline)]
-		[Parameter(ParameterSetName = 'SessionID')]
+		[Parameter(Mandatory, ValueFromPipeline, ParameterSetName = 'SessionID')]
 		[ValidateScript({ $null -ne (Get-RDUserSession | Where-Object UnifiedSessionID -eq $_) })]
 		[int] $SessionID,
 
 		[Parameter(ParameterSetName = 'SessionID')]
 		[string] $HostServer = ${env:COMPUTERNAME},
 
-		[Parameter(Mandatory, ValueFromPipeline)]
-		[Parameter(ParameterSetName = 'Session')]
+		[Parameter(Mandatory, ValueFromPipeline, ParameterSetName = 'Session')]
 		[ValidateNotNull()]
-		[Microsoft.RemoteDesktopServices.Management.RDUserSession] $Session,
+		$Session,
 
 		[int] $DelayMinutes    = $script:defaultLogoutDelayMinutes,
 
@@ -161,15 +159,15 @@ function Start-RDUserLogout {
 					$delayDisplayText += 's'
 				}
 
-				$title = $MessageTitle
-				$body  = $MessageBody -f $delayDisplayText
+				$title = $using:MessageTitle
+				$body  = $using:MessageBody -f $delayDisplayText
 				Send-RDUserMessage -HostServer $HostServer -UnifiedSessionID $SessionID -MessageTitle $title -MessageBody $body
 				Start-Sleep -Seconds ($DelayMinutes * 60)
 			}
 
 			$Session = Get-RDUserSession | Where-Object UnifiedSessionID -eq $SessionID
 			if($Session.UserName -eq $UserName) {
-				Invoke-RDUserLogoff -HostServer $HostServer -UnifiedSessionID $SessionID
+				Invoke-RDUserLogoff -HostServer $HostServer -UnifiedSessionID $SessionID -Force
 			}
 		}
 
@@ -354,7 +352,7 @@ function Stop-RDUserSessions {
 			Write-Output $message
 			Write-Verbose -Message $message
 		} else {
-			$longestLastingSession = $queuedSessions.Values.LogoutTime | Measure-Object -Maximum
+			$longestLastingSession = $queuedSessions.Values.LogoutTime | Measure-Object -Maximum | Select-Object -ExpandProperty Maximum
 			$message = "$($queuedSessions.Count) sessions are queued to be terminated. " +
 			           "The last session will be terminated at [$($longestLastingSession.ToString('HH:mm:ss'))]."
 			$message = Format-LogMessage -Message $message
