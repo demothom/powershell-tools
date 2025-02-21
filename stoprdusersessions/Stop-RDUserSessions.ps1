@@ -243,7 +243,7 @@ function Stop-RDUserSessions {
 	$cutOffTime = (Get-Date).AddMinutes($GracePeriodMinutes)
 	$queuedSessions = [hashtable]::new()
 	$exitProgram = $false
-	$gracePeriodMessageShown = $false
+	$gracePeriodPassed = $false
 
 	$message = 'Logging out users.'
 	$message = Format-LogMessage -Message $message
@@ -264,15 +264,14 @@ function Stop-RDUserSessions {
 	while (-not $exitProgram) {
 		
 		$minutesToCutoffTime = New-TimeSpan -Start (Get-Date) -End $cutOffTime.AddSeconds(1) | Select-Object -ExpandProperty Minutes
-		if ($minutesToCutoffTime -le 0) {
-			$message = 'Grace period reached. Sessions will be terminated immediately.'
-			$message = Format-LogMessage -Message $message
-			if($gracePeriodMessageShown) {
-				Write-Verbose -Message $message
-			} else {
-				Write-Output $message
-				$gracePeriodMessageShown = $true
-			}
+	
+		$message = 'Grace period has passed. Sessions will be terminated immediately.'
+		$message = Format-LogMessage -Message $message
+		if ($gracePeriodPassed) {
+			Write-Verbose -Message $message
+		} elseif ($minutesToCutoffTime -le 0) {
+			Write-Output $message
+			$gracePeriodPassed = $true
 		}
 
 		# Query sessions.
@@ -340,19 +339,18 @@ function Stop-RDUserSessions {
 			$message = Format-LogMessage -Message $message
 			Write-Output $message
 
-			if ($session.SessionState -eq 'STATE_DISCONNECTED') {
+			if ($gracePeriodPassed) {
 				$delay = 0
-
+				$message = 'Grace period has passed. The session will be terminated immediately.'
+			} elseif ($session.SessionState -eq 'STATE_DISCONNECTED') {
+				$delay = 0
 				$message = 'The session is disconnected. It will be terminated immediately.'
-				$message = Format-LogMessage -Message $message -NoTimeStamp
-				Write-Verbose -Message $message
 			} else {
 				$delay = [math]::min($minutesToCutoffTime, $LogoutDelayMinutes)
-
 				$message = "The session is active, it will be terminated at: [$((Get-Date).AddMinutes($delay).ToString('HH:mm:ss'))]."
-				$message = Format-LogMessage -Message $message -NoTimeStamp
-				Write-Verbose -Message $message
 			}
+			$message = Format-LogMessage -Message $message -NoTimeStamp
+			Write-Output $message
 
 			$queuedSessions[$session.UnifiedSessionID] = @{
 				UserName   = $session.UserName
