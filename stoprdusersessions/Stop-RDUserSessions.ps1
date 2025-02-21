@@ -213,6 +213,9 @@ The time in seconds after which the script will check for new connections. The d
 .PARAMETER GracePeriodMinutes
 The time in minutes after which the users are logged out immediately. The default value is 5 minutes.
 
+.PARAMETER IgnoredUserNames
+A list of usernames whose sesssions will be ignored. The current user will be ignored by default.
+
 .PARAMETER LogoutOnce
 Causes the script to terminate as soon as no active sessions are detected.
 
@@ -249,6 +252,8 @@ function Stop-RDUserSessions {
 		[ValidateRange(0, 30)]
 		[int] $GracePeriodMinutes = $script:defaultGracePeriodMinutes,
 
+		[string[]] $IgnoredUserNames,
+
 		[switch] $LogoutOnce
 	)
 	
@@ -274,6 +279,8 @@ function Stop-RDUserSessions {
 	Write-Verbose -Message $message
 
 	while (-not $exitProgram) {
+
+		$sessions = Get-RDUserSession | Where-Object UserName -notin $IgnoredUserNames + ${Env:USERNAME}
 		
 		$minutesToCutoffTime = New-TimeSpan -Start (Get-Date) -End $cutOffTime.AddSeconds(1) | Select-Object -ExpandProperty Minutes
 	
@@ -285,9 +292,6 @@ function Stop-RDUserSessions {
 			Write-Output $message
 			$gracePeriodPassed = $true
 		}
-
-		# Query sessions.
-		$sessions = Get-RDUserSession | Where-Object UserName -ne ${Env:USERNAME}
 		
 		if (($sessions | Measure-Object).Count -eq 0) {
 			$message = 'No sessions were detected.'
