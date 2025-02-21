@@ -1,3 +1,5 @@
+#Requires -RunAsAdministrator
+#Requires -Modules RemoteDesktop
 
 $script:defaultPopUpMessageTitle      = 'Maintenance'
 $script:defaultPopUpMessageBody       = 'Due to maintenance your current session will be terminated in {0}. ' +
@@ -141,33 +143,37 @@ function Start-RDUserLogout {
 		if ($PSCmdlet.ParameterSetName -eq 'SessionID') {
 			$Session = Get-RDUserSession | Where-Object UnifiedSessionID -eq $SessionID
 		}
+
+		$delayDisplayText = "$DelayMinutes minute"
+		if($DelayMinutes -gt 1) {
+			$delayDisplayText += 's'
+		}
+
+		$messageArguments = @{
+			HostServer       = $Session.HostServer
+			UnifiedSessionID = $Session.UnifiedSessionID
+			MessageTitle     = $MessageTitle
+			MessageBody      = $MessageBody -f $delayDisplayText
+		}
 		
-		$arguments = $Session.UnifiedSessionID, $Session.UserName, $DelayMinutes, $Session.HostServer
+		$arguments = $Session, $DelayMinutes, $messageArguments
 
 		$logoutScript = [scriptblock] {
 			param(
-				$SessionID,
-				$UserName,
+				$Session,
 				$DelayMinutes,
-				$HostServer
+				$MessageArguments
 			)
 
 			# Only show the popup if there is a delay.
 			if($DelayMinutes -gt 0) {
-				$delayDisplayText = "$DelayMinutes minute"
-				if($DelayMinutes -gt 1) {
-					$delayDisplayText += 's'
-				}
-
-				$title = $using:MessageTitle
-				$body  = $using:MessageBody -f $delayDisplayText
-				Send-RDUserMessage -HostServer $HostServer -UnifiedSessionID $SessionID -MessageTitle $title -MessageBody $body
+				Send-RDUserMessage @MessageArguments
 				Start-Sleep -Seconds ($DelayMinutes * 60)
 			}
 
-			$Session = Get-RDUserSession | Where-Object UnifiedSessionID -eq $SessionID
-			if($Session.UserName -eq $UserName) {
-				Invoke-RDUserLogoff -HostServer $HostServer -UnifiedSessionID $SessionID -Force
+			$currentSession = Get-RDUserSession | Where-Object UnifiedSessionID -eq $SessionID
+			if($currentSession.UserName -eq $Session.UserName) {
+				Invoke-RDUserLogoff -HostServer $Session.HostServer -UnifiedSessionID $Session.UnifiedMessageID -Force
 			}
 		}
 
