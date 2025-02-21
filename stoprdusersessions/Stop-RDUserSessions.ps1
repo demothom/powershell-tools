@@ -98,6 +98,18 @@ The username of the session.
 .PARAMETER HostServer
 The server which sessions should be terminated. Defaults to the local machine.
 
+.PARAMETER Session
+The session object wich shoul be terminated.
+
+.PARAMETER MessageTitle
+The title of the message that is shown to the user of the session. Default is 'Maintenance'
+
+.PARAMETER MessageBody
+The body of the message that is shown to the user of the session. The value of DelayMinutes is inserted via -f string
+at position 0, followed by the text 'minute(s)'.
+The default value is 'Due to maintenance your current session will be terminated in {0}. Please safe all open documents 
+or unsafed progress may be lost.'
+
 .EXAMPLE
 Start-RDUserLogout -SessionID 5 -DelayMinutes 2
 
