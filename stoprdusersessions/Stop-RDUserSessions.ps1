@@ -243,11 +243,11 @@ function Stop-RDUserSessions {
 	$cutOffTime = (Get-Date).AddMinutes($GracePeriodMinutes)
 	$queuedSessions = [hashtable]::new()
 	$exitProgram = $false
+	$gracePeriodMessageShown = $false
 
 	$message = 'Logging out users.'
 	$message = Format-LogMessage -Message $message
 	Write-Output $message
-	Write-Verbose -Message $message
 	$message = "Active sessions will be terminated after $LogoutDelayMinutes Minutes."
 	$message = Format-LogMessage -Message $message
 	Write-Verbose -Message $message
@@ -267,7 +267,12 @@ function Stop-RDUserSessions {
 		if ($minutesToCutoffTime -le 0) {
 			$message = 'Grace period reached. Sessions will be terminated immediately.'
 			$message = Format-LogMessage -Message $message
-			Write-Verbose -Message $message
+			if($gracePeriodMessageShown) {
+				Write-Verbose -Message $message
+			} else {
+				Write-Output $message
+				$gracePeriodMessageShown = $true
+			}
 		}
 
 		# Query sessions.
@@ -298,6 +303,10 @@ function Stop-RDUserSessions {
 				$message = 'Removing the session from the queue.'
 				$message = Format-LogMessage -Message $message -NoTimeStamp
 				Write-Verbose -Message $message
+				$message = "The session with SessionID [$id] and " +
+				           "UserName [$($queuedSessions[$id].UserName)] has been terminated."
+				$message = Format-LogMessage -Message $message -NoTimeStamp
+				Write-Output $message
 							
 				$queuedSessions[$id].JobHandle.StopJob()
 				$queuedSessions.Remove($id)
@@ -307,16 +316,18 @@ function Stop-RDUserSessions {
 		# Remove sessions from queue where sessionID and UserName do not match.
 		foreach($session in $sessions | Where-Object UnifiedSessionID -in $queuedSessions.Keys) {
 			if($queuedSessions[$session.UnifiedSessionID].UserName -ne $session.UserName) {
-				$message = "The UserName for SessionID [$($sessions.UnifiedSessionID)] does not match queued UserName."			
+				$message = "The UserName for SessionID [$($sessions.UnifiedSessionID)] " + 
+				           "does not match the UserName of the queued session."			
 				$message = Format-LogMessage -Message $message
-				Write-Verbose -Message $message
+				Write-Output $message
 				$message = "The queued UserName is: [$($queuedSessions[$session.UnifiedSessionID].UserName)]. " +
 				           "The current UserName for the session is: [$($session.UserName)]."
 				$message = Format-LogMessage -Message $message -NoTimeStamp
-				Write-Verbose -Message $message
-				$message = 'Removing the sessionfrom the queue'
+				Write-Output $message
+				$message = "Removing the sessionfrom the queue, the session with [$($sessions.UnifiedSessionID)] " +
+				           "will be queued again."
 				$message = Format-LogMessage -Message $message -NoTimeStamp
-				Write-Verbose -Message $message
+				Write-Output $message
 
 				$queuedSessions[$session.UnifiedSessionID].JobHandle.StopJob()
 				$queuedSessions.Remove($session.UnifiedSessionID)
@@ -328,7 +339,6 @@ function Stop-RDUserSessions {
 			$message = "Adding session to the queue. SessionID: [$($session.UnifiedSessionID)], UserName: [$($session.UserName)]"
 			$message = Format-LogMessage -Message $message
 			Write-Output $message
-			Write-Verbose -Message $message
 
 			if ($session.SessionState -eq 'STATE_DISCONNECTED') {
 				$delay = 0
@@ -356,14 +366,12 @@ function Stop-RDUserSessions {
 			$message = 'No sessions to terminate.'
 			$message = Format-LogMessage -Message $message
 			Write-Output $message
-			Write-Verbose -Message $message
 		} else {
 			$longestLastingSession = $queuedSessions.Values.LogoutTime | Measure-Object -Maximum | Select-Object -ExpandProperty Maximum
 			$message = "$($queuedSessions.Count) sessions are queued to be terminated. " +
 			           "The last session will be terminated at [$($longestLastingSession.ToString('HH:mm:ss'))]."
 			$message = Format-LogMessage -Message $message
 			Write-Output $message
-			Write-Verbose -Message $message
 
 			$message = 'The following sessions are quequed to be terminated:'
 			$message = Format-LogMessage -Message $message
@@ -371,7 +379,7 @@ function Stop-RDUserSessions {
 			foreach($id in $queuedSessions.Keys) {
 				$message = "SessionID: [$id] UserName: [$($queuedSessions[$id].UserName)] " +
 				           "LogoutTime: [$($queuedSessions[$id].LogoutTime.ToString('HH:mm:ss'))]"
-				$message = Format-LogMessage -Message $message -NoTimeStamp
+				$message = Format-LogMessage -Message $message -NoTimeStamp -Indentation 4
 				Write-Verbose -Message $message
 			}
 		}
@@ -384,5 +392,4 @@ function Stop-RDUserSessions {
 	$message = 'Currently there are no active sessions. Exiting script.'
 	$message = Format-LogMessage -Message $message
 	Write-Output $message
-	Write-Verbose -Message $message
 }
